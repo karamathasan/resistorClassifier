@@ -13,11 +13,11 @@ import PIL.Image
 import pathlib
 
 from sklearn.model_selection import train_test_split
-
+# train.csv and test.csv had to be altered. \ was converted to /
 print("\n\n\n\n")
 
-img_height = int(3024/16)
-img_width = int(4032/16)
+img_height = int(3024/16) # 189
+img_width = int(4032/16) # 252
 num_classes = 4
 
 model = Sequential([
@@ -47,13 +47,13 @@ files = data['Image_Path']
 labels = pd.get_dummies(data.astype(str), prefix="resistor_", columns=["Class"], dtype=int)
 labels = labels.drop(["ID", "Image_Path"], axis=1)
 
-path = pathlib.Path(dir).with_suffix('')
+# path = pathlib.Path(dir).with_suffix('')
 # img_count = len(list(path.glob("*/*.png")))
 
 X_train, X_test, y_train, y_test = train_test_split(files, labels, shuffle = True)
 
-epochs = 10
-batch_size = 64
+epochs = 10 # usually 10
+batch_size = 64 # usually 64
 
 print(labels.head())
 
@@ -66,31 +66,34 @@ for j in range(epochs):
     for i in range(len(X_train)):
         print(f"     iteration: {i}")
         if (i % batch_size == 0 or i == len(X_train)-1) and i != 0: 
-            try:
-                X = np.array(X)
-            except:
-                raise Exception(f"X = np.array(X) failed. X: {X}")
+            X = np.array(X)
             y = np.array(y)
+            print(f"        {X.shape}")
             model.fit(X,y, batch_size=batch_size)
             X = []
             y = []
         img = PIL.Image.open(dir + X_train.iloc[i])
-        img.resize((img_width,img_height))
+        img = img.resize((img_width,img_height))
         img = keras.utils.img_to_array(img)
         X.append(img)
         y.append(y_train.iloc[i])
 
 # //////// TESTING /////////
-# score = 0
-# for i in range(len(X_test)):
-#     img = PIL.Image.open(dir + X_test.iloc[i])
-#     prediction = model.predict(np.expand_dims(keras.utils.img_to_array(img,dtype=float ),axis = 0))
-#     true_class = labels.columns[np.argmax(y_test.iloc[i])]
-#     predicted_class = labels.columns[np.argmax(prediction)]
-#     print(f"    location: {X_test.iloc[i]}")
-#     print(f'    true class: {true_class}, predicted class: {predicted_class}')
-#     # if (y_test.iloc[i].to_numpy().all() == prediction.all()):
-#     if (true_class == predicted_class):
-#         score+=1
-# print(f"accuracy: {100 * (score / len(X_test))}%")
+# test_dir = "Data3/test/"
 
+# test performed on split
+score = 0
+for i in range(len(X_test)):
+    img = PIL.Image.open(dir + X_test.iloc[i])
+    img = img.resize((img_width,img_height))
+    prediction = model.predict(np.expand_dims(keras.utils.img_to_array(img,dtype=float ),axis = 0))
+    true_class = labels.columns[np.argmax(y_test.iloc[i])]
+    predicted_class = labels.columns[np.argmax(prediction)]
+    print(f"    location: {X_test.iloc[i]}")
+    print(f'    true class: {true_class}, predicted class: {predicted_class}')
+    # if (y_test.iloc[i].to_numpy().all() == prediction.all()):
+    if (true_class == predicted_class):
+        score+=1
+print(f"accuracy: {100 * (score / len(X_test))}%")
+
+# test performed on test.csv
