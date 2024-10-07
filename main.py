@@ -16,23 +16,40 @@ from sklearn.model_selection import train_test_split
 # train.csv and test.csv had to be altered. \ was converted to /
 print("\n\n\n\n")
 
-img_height = int(3024/16) # 189
-img_width = int(4032/16) # 252
+img_height = int(3024/32) # 189
+img_width = int(4032/32) # 252
 num_classes = 4
 
+# model = Sequential([
+#   layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
+#   layers.Conv2D(16, 3, padding='same', activation='relu'),
+#   layers.MaxPooling2D(),
+#   layers.Conv2D(32, 3, padding='same', activation='relu'),
+#   layers.MaxPooling2D(),
+#   layers.Dropout(0.2),
+#   layers.Conv2D(64, 3, padding='same', activation='relu'),
+#   layers.MaxPooling2D(),
+#   layers.Dropout(0.4),
+#   layers.Flatten(),
+#   layers.Dense(128, activation='relu'),
+#   layers.Dense(num_classes)
+# ])
 model = Sequential([
-  layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
-  layers.Conv2D(16, 3, padding='same', activation='relu'),
-  layers.MaxPooling2D(),
-  layers.Conv2D(32, 3, padding='same', activation='relu'),
-  layers.MaxPooling2D(),
-  layers.Dropout(0.2),
-  layers.Conv2D(64, 3, padding='same', activation='relu'),
-  layers.MaxPooling2D(),
-  layers.Dropout(0.4),
-  layers.Flatten(),
-  layers.Dense(128, activation='relu'),
-  layers.Dense(num_classes)
+    layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
+    # layers.Conv2D(16, 3, padding='same', activation='relu'),
+    # layers.MaxPooling2D(),
+    # layers.Conv2D(32, 3, padding='same', activation='relu'),
+    # layers.MaxPooling2D(),
+    # layers.Dropout(0.2),
+    # layers.Conv2D(64, 3, padding='same', activation='relu'),
+    # layers.MaxPooling2D(),
+    # layers.Dropout(0.4),
+    layers.Conv2D(128, 3, padding='same', activation='relu'),
+    layers.MaxPooling2D(),
+    layers.Dropout(0.4),
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(num_classes)
 ])
 model.compile(\
     optimizer='adam',
@@ -47,12 +64,9 @@ files = data['Image_Path']
 labels = pd.get_dummies(data.astype(str), prefix="resistor_", columns=["Class"], dtype=int)
 labels = labels.drop(["ID", "Image_Path"], axis=1)
 
-# path = pathlib.Path(dir).with_suffix('')
-# img_count = len(list(path.glob("*/*.png")))
-
 X_train, X_test, y_train, y_test = train_test_split(files, labels, shuffle = True)
 
-epochs = 10 # usually 10
+epochs = 5 # usually 10
 batch_size = 64 # usually 64
 
 print(labels.head())
@@ -96,4 +110,4 @@ for i in range(len(X_test)):
         score+=1
 print(f"accuracy: {100 * (score / len(X_test))}%")
 
-# test performed on test.csv
+
