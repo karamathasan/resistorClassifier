@@ -12,6 +12,8 @@ import PIL
 import PIL.Image
 import pathlib
 
+from env import SECRET
+
 from sklearn.model_selection import train_test_split
 # train.csv and test.csv had to be altered. \ was converted to /
 print("\n\n\n\n")
@@ -70,8 +72,8 @@ labels = labels.drop(["ID", "Image_Path"], axis=1)
 # load all images 
 print("loading images")
 imgs = []
-for i in range(len(files)):
-# for i in range(len(files)//4):
+# for i in range(len(files)):
+for i in range(len(files)//10):
     print(i)
     img = PIL.Image.open(dir + files.iloc[i])
     img = img.resize((img_width,img_height))
@@ -79,9 +81,9 @@ for i in range(len(files)):
     imgs.append(img)
 imgs = np.array(imgs)
 epochs = 20 # usually 10
-batch_size = 16 # usually 64
+batch_size = 64 # usually 64
 
-# labels = labels.iloc[0:len(labels)//4]
+labels = labels[0:len(labels)//10]
 X_train, X_test, y_train, y_test = train_test_split(imgs, labels, shuffle = True)
 
 # /////// ITERATIVE FITTING ///////
@@ -106,16 +108,42 @@ for j in range(epochs):
 
 # test performed on split
 score = 0
-for i in range(len(X_test)):
+for i in range(len(X_test)//10):
     img = X_test[i]
     prediction = model.predict(np.expand_dims(keras.utils.img_to_array(img,dtype=float),axis = 0))
     true_class = labels.columns[np.argmax(y_test.iloc[i])]
     predicted_class = labels.columns[np.argmax(prediction)]
-    # print(f"    location: {X_test[i]}")
     print(f'    true class: {true_class}, predicted class: {predicted_class}')
-    # if (y_test.iloc[i].to_numpy().all() == prediction.all()):
     if (true_class == predicted_class):
         score+=1
 print(f"accuracy: {100 * (score / len(X_test))}%")
 
+# submission tests
+test_dir = "Data3/test/"
+test_data = pd.read_csv("Data3/test/test.csv")
 
+test_files = test_data['Image_Path']
+test_imgs =  []
+
+print("being loading testing pictures")
+for i in range(len(test_files)):
+  print(i)
+  img = PIL.Image.open(test_dir + test_files.iloc[i])
+  img = img.resize((img_width,img_height))
+  test_imgs.append(keras.utils.img_to_array(img))
+test_imgs = np.array(test_imgs)
+test_imgs //=5
+classes = []
+
+for i in range(len(test_files)):
+  prediction = model.predict(np.expand_dims(keras.utils.img_to_array(test_imgs[i],dtype=float),axis = 0))
+  # classes.append(labels.columns[np.argmax(prediction)])
+  classes.append(np.argmax(prediction)+1)
+  print(prediction)
+
+submission = pd.DataFrame(
+  {"ID":test_files,"Predicted_Classes":classes}
+)
+
+loc = SECRET + "NaiveSubmission" + ".csv"
+submission.to_csv(loc, index=False)
