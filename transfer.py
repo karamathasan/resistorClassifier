@@ -30,8 +30,28 @@ files = data['Image_Path']
 labels = pd.get_dummies(data.astype(str), prefix="resistor_", columns=["Class"], dtype=int)
 labels = labels.drop(["ID", "Image_Path"], axis=1)
 
-X, y = [], []
+# batch_size = 32
+# validation_split = 0.2
+# train_ds = keras.preprocessing.image_dataset_from_directory(
+#     dir,
+#     validation_split=validation_split,
+#     subset="training",
+#     seed=42,
+#     image_size=(img_height, img_width),
+#     batch_size=batch_size
+# )
 
+# # Load validation/testing data with 20% split
+# val_ds = keras.preprocessing.image_dataset_from_directory(
+#     dir,
+#     validation_split=validation_split,
+#     subset="validation",
+#     seed=42,
+#     image_size=(img_height, img_width),
+#     batch_size=batch_size
+# )
+
+X, y = [], []
 print("begin data processing")
 for i in range(len(files)):
     print(i)
@@ -44,13 +64,22 @@ X = np.array(X, dtype=np.float32)
 X /= 255
 y = np.array(y, dtype=np.float32)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True)
+X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
+train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
+val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
 
 feature_extractor_model = "https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/4"
 pretrained_model_without_top_layer = hub.KerasLayer(
   feature_extractor_model, input_shape=(224, 224, 3), trainable=False)
 
+augment = Sequential([
+  layers.RandomFlip("horizontal_and_vertical"),
+  layers.RandomRotation(0.2),
+])
+
 model = Sequential([
+  augment,
   pretrained_model_without_top_layer,
   layers.Dense(num_classes)
 ])
@@ -58,18 +87,16 @@ model = Sequential([
 model.compile(
   optimizer="adam",
   loss=losses.CategoricalCrossentropy(from_logits=True),
-  metrics=[tf.keras.metrics.BinaryAccuracy(threshold=0.5, name='accuracy')]
+  metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-epochs = 25
-
-validation = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-validation = validation.batch(32)
-history = model.fit(X_train, y_train, validation_data=validation, epochs=epochs)
+epochs = 15
+# history = model.fit(X_train, y_train, validation_data=val_ds, epochs=epochs)
+history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 print("\n begin testing")
 
-accuracy = model.evaluate(X_test, y_test)
-print("accuracy: " + str(accuracy))
+# accuracy = model.evaluate(X_test, y_test)
+# print("accuracy: " + str(accuracy))
 
 # plot
 
@@ -93,7 +120,7 @@ plt.plot(loss, label='Training Loss')
 plt.plot(val_loss, label='Validation Loss')
 plt.legend(loc='upper right')
 plt.ylabel('Cross Entropy')
-plt.ylim([0,1.0])
+plt.ylim([0,2.0])
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
 plt.show()
