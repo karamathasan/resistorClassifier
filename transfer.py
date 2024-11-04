@@ -76,6 +76,7 @@ pretrained_model_without_top_layer = hub.KerasLayer(
 augment = Sequential([
   layers.RandomFlip("horizontal_and_vertical"),
   layers.RandomRotation(0.2),
+  layers.RandomZoom(0.1),
 ])
 
 model = Sequential([
@@ -90,13 +91,23 @@ model.compile(
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-epochs = 15
+epochs = 40
 # history = model.fit(X_train, y_train, validation_data=val_ds, epochs=epochs)
 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 print("\n begin testing")
 
-# accuracy = model.evaluate(X_test, y_test)
-# print("accuracy: " + str(accuracy))
+pretrained_model_without_top_layer.trainable = True
+
+model.compile(
+  optimizer=keras.optimizers.Adam(learning_rate=0.00001),
+  loss=losses.CategoricalCrossentropy(from_logits=True),
+  metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
+)
+
+new_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs//5)
+
+accuracy = model.evaluate(X_test, y_test)
+print("accuracy: " + str(accuracy))
 
 # plot
 
@@ -140,12 +151,11 @@ for i in range(len(test_files)):
   img = img.resize((img_width,img_height))
   test_imgs.append(utils.img_to_array(img))
 test_imgs = np.array(test_imgs)
-test_imgs /=5
+test_imgs /= 255
 classes = []
 
 for i in range(len(test_files)):
   prediction = model.predict(np.expand_dims(keras.utils.img_to_array(test_imgs[i],dtype=float),axis = 0))
-  # classes.append(labels.columns[np.argmax(prediction)])
   classes.append(np.argmax(prediction)+1)
   print(prediction)
 
@@ -153,5 +163,5 @@ submission = pd.DataFrame(
   {"ID":test_files,"Predicted_Classes":classes}
 )
 
-loc = SECRET + "trns50e" + ".csv"
+loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAug" + ".csv"
 submission.to_csv(loc, index=False)
