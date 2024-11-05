@@ -82,79 +82,98 @@ augment = Sequential([
 model = Sequential([
   augment,
   pretrained_model_without_top_layer,
+  layers.Dense(256, activation='relu'),
+  layers.Dropout(0.5),
+  layers.Dense(128, activation='relu'),
+  layers.Dropout(0.3),
   layers.Dense(num_classes)
 ])
 
+# PHASE 1
 model.compile(
   optimizer="adam",
   loss=losses.CategoricalCrossentropy(from_logits=True),
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-epochs = 40
-# history = model.fit(X_train, y_train, validation_data=val_ds, epochs=epochs)
-history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
+epochs = 15
+phase1_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 # print("\n begin testing")
+
+
+
+# X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
+# train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
+# val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
+
+# PHASE 2
 
 augment = Sequential([
   layers.RandomFlip("horizontal_and_vertical"),
-  layers.RandomRotation(0.3),
-  layers.RandomZoom(0.2),
-  layers.RandomContrast(0.2),
-  layers.RandomBrightness(0.2)
+  layers.RandomRotation(0.5),
+  layers.RandomZoom(0.3),
+  layers.RandomTranslation(0.2, 0.2)
 ])
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
-train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
-val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
-
-model.fit (train_ds, validation_data=val_ds, epochs=20)
 model.compile(
-  optimizer=keras.optimizers.Adam(learning_rate=0.00005),
+  optimizer = "adam",
+  loss=losses.CategoricalCrossentropy(from_logits=True),
+  metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
+)
+phase2_history = model.fit (train_ds, validation_data=val_ds, epochs=epochs)
+
+# PHASE 3: NO AUGMENTS
+augment = Sequential([])
+
+model.compile(
+  optimizer = "adam",
   loss=losses.CategoricalCrossentropy(from_logits=True),
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
+phase3_history = model.fit(train_ds, validation_data=val_ds, epochs = 18)
+
+# PHASE 4: FINE TUNE
 pretrained_model_without_top_layer.trainable = True
 
 model.compile(
-  optimizer=keras.optimizers.Adam(learning_rate=0.00001),
+  optimizer=keras.optimizers.Adam(learning_rate=0.0001),
   loss=losses.CategoricalCrossentropy(from_logits=True),
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-new_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs//4)
+finetune_history = model.fit(train_ds, validation_data=val_ds, epochs=20)
 
 accuracy = model.evaluate(X_test, y_test)
 print("accuracy: " + str(accuracy))
 
 # plot
+acc = phase1_history.history['accuracy'] + phase2_history.history["accuracy"] + phase3_history.history["accuracy"] + finetune_history.history["accuracy"]
+val_acc = phase1_history.history['val_accuracy'] + phase2_history.history['val_accuracy'] + phase3_history.history['val_accuracy'] + finetune_history.history['val_accuracy']
 
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
-
-loss = history.history['loss']
-val_loss = history.history['val_loss']
+loss = phase1_history.history['loss'] + phase2_history.history["loss"] + phase3_history.history["loss"] + finetune_history.history["loss"]
+val_loss = phase1_history.history['val_loss'] + phase2_history.history['val_loss'] + phase3_history.history['val_loss'] + finetune_history.history['val_loss']
 
 plt.figure(figsize=(8, 8))
 plt.subplot(2, 1, 1)
 plt.plot(acc, label='Training Accuracy')
 plt.plot(val_acc, label='Validation Accuracy')
+plt.ylim([0, 1.0])
+# plt.plot([epochs-1, epochs-1, epochs-1],
+#           plt.ylim(), label='Start Fine Tuning')
 plt.legend(loc='lower right')
-plt.ylabel('Accuracy')
-plt.ylim([min(plt.ylim()),1])
 plt.title('Training and Validation Accuracy')
 
 plt.subplot(2, 1, 2)
 plt.plot(loss, label='Training Loss')
 plt.plot(val_loss, label='Validation Loss')
+plt.ylim([0, 2.0])
+# plt.plot([epochs-1, epochs-1, epochs-1],
+#          plt.ylim(), label='Start Fine Tuning')
 plt.legend(loc='upper right')
-plt.ylabel('Cross Entropy')
-plt.ylim([0,2.0])
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
 plt.show()
-
 # create predictions
 
 test_dir = "Data3/test/"
@@ -182,5 +201,6 @@ submission = pd.DataFrame(
   {"ID":test_files,"Predicted_Classes":classes}
 )
 
-loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAugCur" + ".csv"
+# loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAugCur" + ".csv"
+loc = SECRET + "trns4phaseCur20f.csv"
 submission.to_csv(loc, index=False)
