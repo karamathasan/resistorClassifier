@@ -94,7 +94,26 @@ model.compile(
 epochs = 40
 # history = model.fit(X_train, y_train, validation_data=val_ds, epochs=epochs)
 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
-print("\n begin testing")
+# print("\n begin testing")
+
+augment = Sequential([
+  layers.RandomFlip("horizontal_and_vertical"),
+  layers.RandomRotation(0.3),
+  layers.RandomZoom(0.2),
+  layers.RandomContrast(0.2),
+  layers.RandomBrightness(0.2)
+])
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
+train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
+val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
+
+model.fit (train_ds, validation_data=val_ds, epochs=20)
+model.compile(
+  optimizer=keras.optimizers.Adam(learning_rate=0.00005),
+  loss=losses.CategoricalCrossentropy(from_logits=True),
+  metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
+)
 
 pretrained_model_without_top_layer.trainable = True
 
@@ -104,7 +123,7 @@ model.compile(
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-new_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs//5)
+new_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs//4)
 
 accuracy = model.evaluate(X_test, y_test)
 print("accuracy: " + str(accuracy))
@@ -163,5 +182,5 @@ submission = pd.DataFrame(
   {"ID":test_files,"Predicted_Classes":classes}
 )
 
-loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAug" + ".csv"
+loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAugCur" + ".csv"
 submission.to_csv(loc, index=False)
