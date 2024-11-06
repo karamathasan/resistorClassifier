@@ -30,27 +30,6 @@ files = data['Image_Path']
 labels = pd.get_dummies(data.astype(str), prefix="resistor_", columns=["Class"], dtype=int)
 labels = labels.drop(["ID", "Image_Path"], axis=1)
 
-# batch_size = 32
-# validation_split = 0.2
-# train_ds = keras.preprocessing.image_dataset_from_directory(
-#     dir,
-#     validation_split=validation_split,
-#     subset="training",
-#     seed=42,
-#     image_size=(img_height, img_width),
-#     batch_size=batch_size
-# )
-
-# # Load validation/testing data with 20% split
-# val_ds = keras.preprocessing.image_dataset_from_directory(
-#     dir,
-#     validation_split=validation_split,
-#     subset="validation",
-#     seed=42,
-#     image_size=(img_height, img_width),
-#     batch_size=batch_size
-# )
-
 X, y = [], []
 print("begin data processing")
 for i in range(len(files)):
@@ -64,7 +43,6 @@ X = np.array(X, dtype=np.float32)
 X /= 255
 y = np.array(y, dtype=np.float32)
 
-# X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True)
 X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
 train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
 val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
@@ -75,8 +53,9 @@ pretrained_model_without_top_layer = hub.KerasLayer(
 
 augment = Sequential([
   layers.RandomFlip("horizontal_and_vertical"),
-  layers.RandomRotation(0.2),
-  layers.RandomZoom(0.1),
+  layers.RandomRotation(0.5),
+  layers.RandomZoom(0.3),
+  layers.RandomTranslation(0.2, 0.2)
 ])
 
 model = Sequential([
@@ -98,21 +77,13 @@ model.compile(
 
 epochs = 15
 phase1_history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
-# print("\n begin testing")
-
-
-
-# X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle = True, stratify=labels.iloc[0:len(y)])
-# train_ds = tf.data.Dataset.from_tensor_slices((X_train,y_train)).batch(32)
-# val_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(32)
 
 # PHASE 2
 
 augment = Sequential([
   layers.RandomFlip("horizontal_and_vertical"),
-  layers.RandomRotation(0.5),
-  layers.RandomZoom(0.3),
-  layers.RandomTranslation(0.2, 0.2)
+  layers.RandomRotation(0.2),
+  layers.RandomZoom(0.1),
 ])
 
 model.compile(
@@ -131,7 +102,7 @@ model.compile(
   metrics=[keras.metrics.CategoricalAccuracy(name="accuracy")]
 )
 
-phase3_history = model.fit(train_ds, validation_data=val_ds, epochs = 18)
+phase3_history = model.fit(train_ds, validation_data=val_ds, epochs = 20)
 
 # PHASE 4: FINE TUNE
 pretrained_model_without_top_layer.trainable = True
@@ -159,8 +130,11 @@ plt.subplot(2, 1, 1)
 plt.plot(acc, label='Training Accuracy')
 plt.plot(val_acc, label='Validation Accuracy')
 plt.ylim([0, 1.0])
-# plt.plot([epochs-1, epochs-1, epochs-1],
-#           plt.ylim(), label='Start Fine Tuning')
+plt.plot([epochs-1, epochs-1], plt.ylim(), label='phase 2 start')
+plt.plot([2*epochs-1, 2*epochs-1], plt.ylim(), label='phase 3 start ')
+plt.plot([20 + 2*epochs-1, 20 + 2*epochs-1], plt.ylim(), label='Start Fine Tuning')
+
+
 plt.legend(loc='lower right')
 plt.title('Training and Validation Accuracy')
 
@@ -168,8 +142,9 @@ plt.subplot(2, 1, 2)
 plt.plot(loss, label='Training Loss')
 plt.plot(val_loss, label='Validation Loss')
 plt.ylim([0, 2.0])
-# plt.plot([epochs-1, epochs-1, epochs-1],
-#          plt.ylim(), label='Start Fine Tuning')
+plt.plot([epochs-1, epochs-1], plt.ylim(), label='phase 2 start')
+plt.plot([2*epochs-1, 2*epochs-1], plt.ylim(), label='phase 3 start ')
+plt.plot([20 + 2*epochs-1, 20 + 2*epochs-1], plt.ylim(), label='Start Fine Tuning')
 plt.legend(loc='upper right')
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
@@ -202,5 +177,5 @@ submission = pd.DataFrame(
 )
 
 # loc = SECRET + "trns" + str(epochs) + "+" + str(epochs//5) + "eAugCur" + ".csv"
-loc = SECRET + "trns4phaseCur20f.csv"
+loc = SECRET + "trns4pAntiCur20pl25f.csv"
 submission.to_csv(loc, index=False)
