@@ -4,7 +4,7 @@ This project is meant to be a submission to SBU AI Community competition
 
 ## Model Architecture
 
-The model is built on MobileNetV2 as a means for transfer learning. After that, data augmentation is used in a anti-curriculum manner in combination to fine tuning in phases
+The model is built on MobileNetV2 as a means for transfer learning. Furthermore, data augmentation is used in a anti-curriculum manner in combination to fine tuning in phases. The fine-tuning phase is computationally expensive, and can cause overfitting, so it is made to be the final phase. All of the phases before it attempt to maximize the final performance before plateauing by first training on more generalized, augmented data before reaching the true dataset. The fine-tuning phase benefits from this, since it is able to train the model past its first plateau.
 
 ### Phase 1: High Augment (~15 epochs)
 
@@ -20,4 +20,10 @@ In the third phase, the model does not use augmentation factors. Now that there 
 
 ### Phase 4: Fine Tune (~20 epochs)
 
-In the fourth and final phase, the layers of MobileNetV2 unfreeze, allowing for the model to fine tune to the training data
+In the fourth and final phase, the layers of MobileNetV2 unfreeze, allowing for the model to fine tune to the training data.
+
+# Results
+![Control-V(1)](https://github.com/user-attachments/assets/5d390c4f-c7a4-4aab-94df-cbc9f5910a08)
+
+Here, we see how the model is able to learn to failure through the use of decreasingly augmented data before finetuning to reach a final accuracy of approximately 90%
+
